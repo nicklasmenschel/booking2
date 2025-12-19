@@ -4,6 +4,8 @@ import { EventHero } from "./event-hero";
 import { EventDetails } from "./event-details";
 import { BookingWidget } from "./booking-widget";
 import { ReportButton } from "@/components/safety/report-button";
+import { ReviewsSection } from "@/components/reviews/review-card";
+import { getOfferingReviews } from "@/actions/reviews";
 import type { Metadata } from "next";
 
 interface EventPageProps {
