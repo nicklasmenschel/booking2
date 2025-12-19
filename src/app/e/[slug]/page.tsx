@@ -3,6 +3,7 @@ import { getOfferingBySlug } from "@/actions/offerings";
 import { EventHero } from "./event-hero";
 import { EventDetails } from "./event-details";
 import { BookingWidget } from "./booking-widget";
+import { ReportButton } from "@/components/safety/report-button";
 import type { Metadata } from "next";
 
 interface EventPageProps {
@@ -82,6 +83,13 @@ export default async function EventPage({ params }: EventPageProps) {
                                 ticketTiers={offering.ticketTiers}
                             />
                         </div>
+                    </div>
+                </div>
+
+                {/* Footer with Report */}
+                <div className="mt-12 pt-8 border-t border-gray-200">
+                    <div className="flex justify-center">
+                        <ReportButton targetType="OFFERING" targetId={offering.id} />
                     </div>
                 </div>
             </div>

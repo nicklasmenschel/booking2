@@ -342,6 +342,60 @@ enum ReviewStatus {
 }
 
 // ============================================================================
+// TRUST & SAFETY
+// ============================================================================
+
+model Report {
+  id String @id @default(cuid())
+  
+  // Who reported (optional for anonymous reports)
+  reportedBy String?
+  
+  // What was reported
+  targetType ReportTargetType
+  targetId   String
+  
+  // Report details
+  category ReportCategory
+  details  String? @db.Text
+  
+  // Status tracking
+  status       ReportStatus @default(PENDING)
+  reviewedBy   String? // Admin user ID
+  reviewedAt   DateTime?
+  resolution   String? @db.Text
+  
+  createdAt DateTime @default(now())
+  
+  @@index([status])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+}
+
+enum ReportTargetType {
+  OFFERING
+  USER
+  REVIEW
+  BOOKING
+}
+
+enum ReportCategory {
+  SCAM
+  UNSAFE
+  OFFENSIVE
+  SPAM
+  INAPPROPRIATE
+  OTHER
+}
+
+enum ReportStatus {
+  PENDING
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+// ============================================================================
 // PROGRESSIVE DISCLOSURE MODELS - Hidden By Default
 // ============================================================================
 

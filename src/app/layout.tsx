@@ -11,6 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://gardentable.com'),
   title: {
     default: "Garden Table - Create & Book Food Experiences",
     template: "%s | Garden Table",
