@@ -1,0 +1,837 @@
+// Garden Table - Complete Database Schema
+// Design Philosophy: Build everything professionally, show only what's essential
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================================
+// CORE MODELS - What Users See
+// ============================================================================
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @unique
+  name      String?
+  phone     String?
+  avatar    String?
+  
+  // Simple role
+  role      UserRole @default(GUEST)
+  
+  // Guest profile (hidden until first booking)
+  dietaryRestrictions String[] @default([])
+  allergies           String[] @default([])
+  accessibilityNeeds  String?
+  
+  // Stripe (invisible to user)
+  stripeCustomerId     String? @unique
+  defaultPaymentMethod String?
+  
+  // Preferences (collected passively)
+  emailOptIn      Boolean @default(true)
+  smsOptIn        Boolean @default(false)
+  marketingOptIn  Boolean @default(false)
+  
+  // Metrics (computed, never shown)
+  totalBookings    Int     @default(0)
+  totalSpent       Decimal @default(0) @db.Decimal(10, 2)
+  cancellationRate Decimal @default(0) @db.Decimal(5, 2)
+  noShowCount      Int     @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  hostedOfferings Offering[]
+  bookings        Booking[]
+  reviews         Review[]
+  guestNotes      GuestNote[]
+  guestTags       GuestTag[]
+  
+  @@index([email])
+  @@index([role])
+}
+
+enum UserRole {
+  GUEST
+  HOST
+  ADMIN
+}
+
+model Offering {
+  id   String @id @default(cuid())
+  slug String @unique
+  
+  // The basics (always visible)
+  name        String
+  description String @db.Text
+  coverImage  String
+  images      String[] @default([])
+  
+  // Location (visible)
+  address   String?
+  city      String?
+  state     String?
+  country   String  @default("US")
+  latitude  Decimal? @db.Decimal(10, 8)
+  longitude Decimal? @db.Decimal(11, 8)
+  timezone  String   @default("UTC") // Critical for scheduling
+  
+  // Virtual event support
+  isVirtual   Boolean @default(false)
+  virtualUrl  String?
+  
+  // Type (selected in creation, determines features shown)
+  type OfferingType @default(ONE_TIME)
+  
+  // Pricing (simple by default)
+  basePrice  Decimal @db.Decimal(10, 2)
+  currency   String  @default("USD")
+  priceLevel Int     @default(2)
+  
+  // Capacity (simple)
+  capacity Int
+  
+  // Status
+  status      Status    @default(DRAFT)
+  publishedAt DateTime?
+  
+  // Metadata (automatic)
+  category       String?
+  cuisineTypes   String[] @default([])
+  dietaryOptions String[] @default([])
+  features       String[] @default([])
+  
+  // Host info
+  hostId String
+  
+  // Customization (minimal, hidden initially)
+  accentColor String @default("#22c55e")
+  logoUrl     String?
+  
+  // Advanced settings (hidden behind "Advanced" button)
+  cancellationPolicy     CancellationPolicy @default(FLEXIBLE)
+  minPartySize           Int                @default(1)
+  maxPartySize           Int?
+  advanceBookingDays     Int                @default(60)
+  lastMinuteBookingHours Int                @default(2)
+  
+  // Computed fields (never set by user)
+  totalBookings   Int      @default(0)
+  totalRevenue    Decimal  @default(0) @db.Decimal(10, 2)
+  averageRating   Decimal? @db.Decimal(3, 2)
+  reviewCount     Int      @default(0)
+  popularityScore Decimal  @default(0) @db.Decimal(10, 2)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  host            User              @relation(fields: [hostId], references: [id])
+  instances       EventInstance[]
+  bookings        Booking[]
+  reviews         Review[]
+  ticketTiers     TicketTier[]
+  customQuestions CustomQuestion[]
+  recurrenceRule  RecurrenceRule?
+  tables          Table[]
+  servicePeriods  ServicePeriod[]
+  menuItems       MenuItem[]
+  blockedDates    BlockedDate[]
+  
+  @@index([slug])
+  @@index([hostId])
+  @@index([status])
+  @@index([type])
+  @@index([city, status])
+}
+
+enum OfferingType {
+  ONE_TIME
+  RECURRING
+  RESTAURANT
+}
+
+enum Status {
+  DRAFT
+  PUBLISHED
+  PAUSED
+  ARCHIVED
+}
+
+enum CancellationPolicy {
+  FLEXIBLE
+  MODERATE
+  STRICT
+}
+
+model EventInstance {
+  id         String @id @default(cuid())
+  offeringId String
+  
+  // When (always visible)
+  date      DateTime @db.Date
+  startTime DateTime
+  endTime   DateTime
+  
+  // Capacity (visible)
+  capacity       Int
+  availableSpots Int
+  
+  // Status (auto-computed, visible)
+  status InstanceStatus @default(AVAILABLE)
+  
+  // Dynamic pricing (hidden until set)
+  priceOverride Decimal? @db.Decimal(10, 2)
+  
+  // Optimistic locking (invisible, critical for race conditions)
+  version Int @default(1)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  offering     Offering      @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  bookings     Booking[]
+  bookingHolds BookingHold[]
+  walkIns      WalkIn[]
+  
+  @@unique([offeringId, date, startTime])
+  @@index([offeringId])
+  @@index([date])
+  @@index([status])
+  @@index([date, status])
+}
+
+enum InstanceStatus {
+  AVAILABLE
+  LIMITED
+  SOLD_OUT
+  COMPLETED
+  CANCELLED
+}
+
+model Booking {
+  id            String @id @default(cuid())
+  bookingNumber String @unique
+  
+  // What
+  instanceId String
+  offeringId String
+  
+  // Who
+  userId     String?
+  guestName  String
+  guestEmail String
+  guestPhone String?
+  guestCount Int     @default(1)
+  
+  // Ticket tier (hidden unless offering has tiers)
+  ticketTierId String?
+  
+  // Custom question answers (hidden unless offering has questions)
+  customAnswers Json?
+  
+  // Special requests (always visible, one field)
+  specialRequests String? @db.Text
+  tags            String[] @default([])
+  
+  // Payment (invisible to user, critical for platform)
+  baseAmount            Decimal              @db.Decimal(10, 2)
+  taxAmount             Decimal              @default(0) @db.Decimal(10, 2)
+  serviceFeeAmount      Decimal              @default(0) @db.Decimal(10, 2)
+  totalAmount           Decimal              @db.Decimal(10, 2)
+  stripePaymentIntentId String?              @unique
+  paymentStatus         BookingPaymentStatus @default(PENDING)
+  
+  // Deposits (hidden unless offering requires deposit)
+  depositAmount    Decimal?  @db.Decimal(10, 2)
+  depositPaidAt    DateTime?
+  remainingAmount  Decimal?  @db.Decimal(10, 2)
+  remainingDueDate DateTime?
+  
+  // Status (simple, visible)
+  status BookingStatus @default(CONFIRMED)
+  
+  // Check-in (visible day-of)
+  qrCode      String?   @unique
+  checkedIn   Boolean   @default(false)
+  checkedInAt DateTime?
+  
+  // Notifications (automatic, invisible)
+  confirmationSent Boolean @default(false)
+  reminder24hSent  Boolean @default(false)
+  reminder2hSent   Boolean @default(false)
+  thankYouSent     Boolean @default(false)
+  
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  cancelledAt DateTime?
+  
+  instance      EventInstance         @relation(fields: [instanceId], references: [id])
+  offering      Offering              @relation(fields: [offeringId], references: [id])
+  user          User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+  ticketTier    TicketTier?           @relation(fields: [ticketTierId], references: [id])
+  review        Review?
+  modifications BookingModification[]
+  notes         BookingNote[]
+  
+  @@index([instanceId])
+  @@index([userId])
+  @@index([guestEmail])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([bookingNumber])
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+  NO_SHOW
+  CHECKED_IN
+  COMPLETED
+}
+
+enum BookingPaymentStatus {
+  PENDING
+  AUTHORIZED
+  CAPTURED
+  PARTIALLY_REFUNDED
+  FULLY_REFUNDED
+  FAILED
+  DISPUTED
+  CHARGEBACK
+}
+
+model Review {
+  id         String @id @default(cuid())
+  bookingId  String @unique
+  offeringId String
+  userId     String?
+  
+  rating  Int
+  comment String? @db.Text
+  photos  String[] @default([])
+  
+  // Auto-moderation (invisible)
+  status ReviewStatus @default(PENDING)
+  
+  // Host response (optional)
+  hostResponse    String?   @db.Text
+  hostRespondedAt DateTime?
+  
+  createdAt DateTime @default(now())
+  
+  booking  Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  offering Offering @relation(fields: [offeringId], references: [id])
+  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@index([offeringId, rating])
+  @@index([status])
+}
+
+enum ReviewStatus {
+  PENDING
+  PUBLISHED
+  HIDDEN
+}
+
+// ============================================================================
+// PROGRESSIVE DISCLOSURE MODELS - Hidden By Default
+// ============================================================================
+
+model TicketTier {
+  id         String @id @default(cuid())
+  offeringId String
+  
+  name        String
+  description String?
+  price       Decimal @db.Decimal(10, 2)
+  capacity    Int?
+  sortOrder   Int     @default(0)
+  
+  isActive Boolean @default(true)
+  
+  offering Offering  @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+  
+  @@index([offeringId])
+}
+
+model CustomQuestion {
+  id         String @id @default(cuid())
+  offeringId String
+  
+  question  String
+  type      QuestionType @default(TEXT)
+  required  Boolean      @default(false)
+  options   String[]     @default([])
+  sortOrder Int          @default(0)
+  
+  offering Offering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  
+  @@index([offeringId])
+}
+
+enum QuestionType {
+  TEXT
+  TEXTAREA
+  SELECT
+  CHECKBOX
+}
+
+model RecurrenceRule {
+  id         String @id @default(cuid())
+  offeringId String @unique
+  
+  frequency      RecurrenceFrequency
+  interval       Int                 @default(1)
+  count          Int?
+  until          DateTime?
+  byWeekDay      String[]
+  byMonthDay     Int[]
+  byMonth        Int[]
+  
+  lastGenerated  DateTime?
+  
+  offering Offering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+}
+
+enum RecurrenceFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+model Waitlist {
+  id         String @id @default(cuid())
+  instanceId String
+  offeringId String
+  
+  guestEmail String
+  guestName  String
+  guestPhone String?
+  partySize  Int
+  
+  status WaitlistStatus @default(ACTIVE)
+  
+  priority Decimal @default(0) @db.Decimal(10, 2)
+  
+  notifiedAt DateTime?
+  expiresAt  DateTime?
+  
+  createdAt DateTime @default(now())
+  
+  @@index([instanceId, status, priority])
+  @@index([status])
+}
+
+enum WaitlistStatus {
+  ACTIVE
+  NOTIFIED
+  CONVERTED
+  EXPIRED
+  CANCELLED
+}
+
+model BookingHold {
+  id         String @id @default(cuid())
+  instanceId String
+  sessionId  String @unique
+  guestCount Int
+  
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  
+  instance EventInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  
+  @@index([instanceId, expiresAt])
+  @@index([expiresAt])
+}
+
+model BookingModification {
+  id        String @id @default(cuid())
+  bookingId String
+  
+  modificationType ModificationType
+  oldValue         Json
+  newValue         Json
+  reason           String?
+  
+  modifiedBy String
+  
+  refundAmount Decimal?      @db.Decimal(10, 2)
+  refundStatus RefundStatus?
+  refundedAt   DateTime?
+  
+  createdAt DateTime @default(now())
+  
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  
+  @@index([bookingId])
+}
+
+enum ModificationType {
+  PARTY_SIZE_INCREASE
+  PARTY_SIZE_DECREASE
+  DATE_CHANGE
+  CANCELLATION
+  HOST_CANCELLATION
+}
+
+enum RefundStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model GuestNote {
+  id     String @id @default(cuid())
+  userId String
+  hostId String
+  
+  note    String  @db.Text
+  private Boolean @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, hostId])
+}
+
+model GuestTag {
+  id     String @id @default(cuid())
+  userId String
+  hostId String
+  
+  tag String
+  
+  addedAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, hostId])
+  @@index([hostId, tag])
+}
+
+model BookingNote {
+  id        String @id @default(cuid())
+  bookingId String
+  
+  note    String @db.Text
+  addedBy String
+  
+  createdAt DateTime @default(now())
+  
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  
+  @@index([bookingId])
+}
+
+// ============================================================================
+// RESTAURANT-SPECIFIC MODELS
+// ============================================================================
+
+model Table {
+  id         String @id @default(cuid())
+  offeringId String
+  
+  tableNumber String
+  capacity    Int
+  minCapacity Int    @default(2)
+  maxCapacity Int
+  
+  section       String
+  position      Json?
+  shape         TableShape @default(RECTANGLE)
+  
+  features      String[] @default([])
+  accessibility Boolean  @default(false)
+  
+  canCombine     Boolean  @default(false)
+  adjacentTables String[] @default([])
+  
+  turnTime   Int @default(90)
+  bufferTime Int @default(15)
+  
+  isActive Boolean @default(true)
+  
+  offering Offering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  
+  @@index([offeringId])
+  @@index([offeringId, isActive])
+}
+
+enum TableShape {
+  ROUND
+  SQUARE
+  RECTANGLE
+  BOOTH
+}
+
+model ServicePeriod {
+  id         String @id @default(cuid())
+  offeringId String
+  
+  name        String
+  startTime   String
+  endTime     String
+  lastSeating String
+  
+  daysOfWeek Int[]
+  
+  intervalMinutes  Int @default(15)
+  maxCoversPerSlot Int
+  
+  isActive Boolean @default(true)
+  
+  offering Offering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  
+  @@index([offeringId])
+}
+
+model WalkIn {
+  id         String  @id @default(cuid())
+  offeringId String
+  instanceId String?
+  
+  guestName  String
+  partySize  Int
+  quotedWait Int
+  
+  status WalkInStatus @default(WAITING)
+  
+  pagerNumber String?
+  notes       String?
+  
+  joinedAt DateTime  @default(now())
+  seatedAt DateTime?
+  leftAt   DateTime?
+  
+  instance EventInstance? @relation(fields: [instanceId], references: [id])
+  
+  @@index([offeringId, status])
+  @@index([joinedAt])
+}
+
+enum WalkInStatus {
+  WAITING
+  SEATED
+  LEFT
+  CANCELLED
+}
+
+model MenuItem {
+  id         String @id @default(cuid())
+  offeringId String
+  
+  name        String
+  description String?
+  category    String
+  price       Decimal @db.Decimal(10, 2)
+  
+  dietaryInfo String[] @default([])
+  allergens   String[] @default([])
+  
+  prepTime  Int     @default(20)
+  available Boolean @default(true)
+  
+  offering Offering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  
+  @@index([offeringId])
+}
+
+model BlockedDate {
+  id         String @id @default(cuid())
+  offeringId String
+  
+  startDate DateTime
+  endDate   DateTime
+  reason    String?
+  recurring Boolean  @default(false)
+  
+  offering Offering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  
+  @@index([offeringId])
+}
+
+// ============================================================================
+// SYSTEM-LEVEL MODELS - Completely Invisible
+// ============================================================================
+
+model EmailLog {
+  id String @id @default(cuid())
+  
+  to      String
+  subject String
+  type    EmailType
+  
+  status EmailStatus @default(SENT)
+  
+  sentAt    DateTime  @default(now())
+  openedAt  DateTime?
+  clickedAt DateTime?
+  
+  error   String?
+  retries Int     @default(0)
+  
+  @@index([type])
+  @@index([sentAt])
+  @@index([to])
+}
+
+enum EmailType {
+  CONFIRMATION
+  REMINDER_24H
+  REMINDER_2H
+  THANK_YOU
+  REVIEW_REQUEST
+  WAITLIST_AVAILABLE
+  BOOKING_MODIFIED
+  BOOKING_CANCELLED
+  HOST_NEW_BOOKING
+  HOST_CANCELLATION
+}
+
+enum EmailStatus {
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  BOUNCED
+  FAILED
+}
+
+model SMSLog {
+  id     String  @id @default(cuid())
+  userId String?
+  
+  phone   String
+  message String
+  cost    Decimal @db.Decimal(10, 4)
+  
+  status   SMSStatus @default(SENT)
+  provider String    @default("Twilio")
+  
+  sentAt DateTime @default(now())
+  
+  error String?
+  
+  @@index([userId])
+  @@index([sentAt])
+}
+
+enum SMSStatus {
+  SENT
+  DELIVERED
+  FAILED
+  UNDELIVERED
+}
+
+model JobQueue {
+  id      String    @id @default(cuid())
+  type    JobType
+  payload Json
+  status  JobStatus @default(PENDING)
+  
+  scheduledFor DateTime?
+  processedAt  DateTime?
+  completedAt  DateTime?
+  
+  error      String?
+  retries    Int @default(0)
+  maxRetries Int @default(3)
+  
+  createdAt DateTime @default(now())
+  
+  @@index([status])
+  @@index([scheduledFor])
+  @@index([type, status])
+}
+
+enum JobType {
+  SEND_EMAIL
+  SEND_SMS
+  SEND_REMINDER
+  GENERATE_INSTANCES
+  PROCESS_WAITLIST
+  SEND_REVIEW_REQUEST
+  CLEANUP_EXPIRED_HOLDS
+  PROCESS_FAILED_PAYMENT
+  SEND_PAYOUT
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model TaxRate {
+  id String @id @default(cuid())
+  
+  country String
+  state   String?
+  county  String?
+  city    String?
+  
+  rate      Decimal @db.Decimal(5, 4)
+  type      TaxType
+  inclusive Boolean
+  
+  isActive Boolean @default(true)
+  
+  effectiveDate DateTime
+  expiresAt     DateTime?
+  
+  @@index([country, state, city])
+}
+
+enum TaxType {
+  VAT
+  SALES_TAX
+  GST
+  SERVICE_TAX
+}
+
+model DataProcessingAgreement {
+  id     String @id @default(cuid())
+  userId String
+  
+  version   String
+  agreedAt  DateTime @default(now())
+  ipAddress String
+  
+  @@index([userId])
+}
+
+model DataDeletionLog {
+  id          String   @id @default(cuid())
+  userId      String
+  requestedBy String
+  deletedAt   DateTime @default(now())
+  
+  @@index([deletedAt])
+}
+
+model SearchIndexSync {
+  id         String    @id @default(cuid())
+  entityType String
+  entityId   String
+  action     String
+  status     String    @default("PENDING")
+  syncedAt   DateTime?
+  
+  @@index([status])
+}
