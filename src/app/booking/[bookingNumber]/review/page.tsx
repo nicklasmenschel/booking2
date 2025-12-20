@@ -4,20 +4,20 @@ import { db } from '@/lib/db';
 import { ReviewForm } from './review-form';
 
 interface ReviewPageProps {
-    params: Promise<{ bookingId: string }>;
+    params: Promise<{ bookingNumber: string }>;
 }
 
 export default async function ReviewPage({ params }: ReviewPageProps) {
     const { userId } = await auth();
-    const { bookingId } = await params;
+    const { bookingNumber } = await params;
 
     if (!userId) {
         redirect('/sign-in');
     }
 
-    // Get booking
+    // Get booking by bookingNumber
     const booking = await db.booking.findUnique({
-        where: { id: bookingId },
+        where: { bookingNumber },
         include: {
             user: true,
             offering: true,
@@ -65,7 +65,7 @@ export default async function ReviewPage({ params }: ReviewPageProps) {
                 </div>
 
                 <ReviewForm
-                    bookingId={bookingId}
+                    bookingId={booking.id}
                     offeringName={booking.offering.name}
                     coverImage={booking.offering.coverImage}
                     date={booking.instance.date}
