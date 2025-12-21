@@ -1,7 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Dialog } from '@/components/ui/dialog';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { submitReport, type ReportCategory, type ReportTargetType } from '@/actions/safety';
 import { toast } from 'sonner';
@@ -62,43 +68,47 @@ export function ReportButton({ targetType, targetId }: ReportButtonProps) {
                 onClick={() => setShowModal(true)}
                 className="text-sm text-gray-500 hover:text-gray-700 underline"
             >
-                Report
+                Report this event
             </button>
 
             <Dialog open={showModal} onOpenChange={setShowModal}>
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl max-w-md w-full p-6">
-                        <h2 className="text-2xl font-bold mb-2">Report Content</h2>
-                        <p className="text-gray-600 mb-6">
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Report Content</DialogTitle>
+                        <DialogDescription>
                             Help us keep Garden Table safe by reporting content that violates our guidelines.
-                        </p>
+                        </DialogDescription>
+                    </DialogHeader>
 
-                        <div className="space-y-3 mb-6">
+                    <div className="space-y-4">
+                        {/* Category Selection */}
+                        <div className="space-y-2">
                             {CATEGORIES.map((cat) => (
                                 <button
                                     key={cat.value}
                                     onClick={() => setSelectedCategory(cat.value)}
-                                    className={`w-full text-left p-4 rounded-xl border-2 transition-colors ${selectedCategory === cat.value
+                                    className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${selectedCategory === cat.value
                                             ? 'border-black bg-gray-50'
                                             : 'border-gray-200 hover:border-gray-300'
                                         }`}
                                 >
-                                    <div className="font-semibold text-gray-900">{cat.label}</div>
-                                    <div className="text-sm text-gray-600">{cat.description}</div>
+                                    <div className="font-semibold text-sm">{cat.label}</div>
+                                    <div className="text-xs text-gray-600">{cat.description}</div>
                                 </button>
                             ))}
                         </div>
 
-                        <div className="mb-6">
+                        {/* Details Input */}
+                        <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Additional details (optional)
                             </label>
                             <textarea
                                 value={details}
                                 onChange={(e) => setDetails(e.target.value)}
-                                placeholder="Provide any additional information that might help us..."
-                                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-black focus:ring-0 transition-colors resize-none"
-                                rows={4}
+                                placeholder="Provide any additional information..."
+                                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:border-black focus:ring-0 transition-colors resize-none"
+                                rows={3}
                                 maxLength={500}
                             />
                             <div className="text-xs text-gray-500 mt-1">
@@ -106,7 +116,8 @@ export function ReportButton({ targetType, targetId }: ReportButtonProps) {
                             </div>
                         </div>
 
-                        <div className="flex gap-3">
+                        {/* Action Buttons */}
+                        <div className="flex gap-3 pt-4">
                             <Button
                                 onClick={() => setShowModal(false)}
                                 variant="outline"
@@ -125,12 +136,11 @@ export function ReportButton({ targetType, targetId }: ReportButtonProps) {
                             </Button>
                         </div>
 
-                        <p className="text-xs text-gray-500 mt-4">
-                            False reports may result in account restrictions. Reports are anonymous unless
-                            you choose to provide contact information.
+                        <p className="text-xs text-gray-500 mt-2">
+                            False reports may result in account restrictions.
                         </p>
                     </div>
-                </div>
+                </DialogContent>
             </Dialog>
         </>
     );
