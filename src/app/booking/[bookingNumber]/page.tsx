@@ -149,8 +149,10 @@ export default async function BookingPage({ params }: BookingPageProps) {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                 >
-                                    <MapPin className="h-4 w-4 mr-2" />
-                                    Get Directions
+                                    <>
+                                        <MapPin className="h-4 w-4 mr-2" />
+                                        Get Directions
+                                    </>
                                 </a>
                             </Button>
                         )}
