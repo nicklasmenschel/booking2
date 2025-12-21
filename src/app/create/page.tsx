@@ -99,6 +99,8 @@ export default function CreatePage() {
             case 1:
                 return formData.name.trim().length >= 3;
             case 2:
+                // Restaurant type doesn't need date/time, will use service periods
+                if (formData.type === "RESTAURANT") return true;
                 return formData.date && formData.startTime;
             case 3:
                 return formData.isVirtual ? formData.virtualUrl : formData.address;
@@ -565,9 +567,17 @@ function StepWhen({
             )}
 
             {type === "RESTAURANT" && (
-                <div className="p-4 rounded-xl bg-muted text-center">
-                    <p className="text-muted-foreground">
-                        Restaurant mode coming soon! For now, create a one-time event.
+                <div className="space-y-4">
+                    <div className="p-4 rounded-xl bg-blue-50 border border-blue-200">
+                        <p className="text-sm font-medium text-blue-900 mb-1">
+                            Restaurant Mode
+                        </p>
+                        <p className="text-sm text-blue-700">
+                            After creating your restaurant, you'll configure service periods (lunch, dinner) and tables in your dashboard.
+                        </p>
+                    </div>
+                    <p className="text-sm text-muted-foreground text-center">
+                        Click "Continue" to proceed with restaurant setup
                     </p>
                 </div>
             )}
