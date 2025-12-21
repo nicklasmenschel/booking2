@@ -779,3 +779,73 @@ export async function addBookingNote(bookingId: string, note: string) {
         };
     }
 }
+
+/**
+ * Confirm booking immediately after successful payment (for development)
+ * In production, this is handled by Stripe webhook
+ */
+export async function confirmBookingPayment(bookingNumber: string) {
+    'use server';
+    
+    try {
+        const booking = await db.booking.findUnique({
+            where: { bookingNumber },
+            include: {
+                offering: true,
+                instance: true,
+            },
+        });
+
+        if (!booking) {
+            return { success: false, error: 'Booking not found' };
+        }
+
+        // Update booking status
+        await db.booking.update({
+            where: { id: booking.id },
+            data: {
+                status: 'CONFIRMED',
+                paymentStatus: 'CAPTURED',
+                confirmationSent: true,
+            },
+        });
+
+        // Send confirmation email
+        const { sendEmail, getBookingConfirmationEmail } = await import('@/lib/email');
+        const { formatCurrency, formatDate, formatTime } = await import('@/lib/utils');
+
+        const template = getBookingConfirmationEmail({
+            guestName: booking.guestName,
+            offeringName: booking.offering.name,
+            date: formatDate(booking.instance.date),
+            time: formatTime(booking.instance.startTime),
+            guestCount: booking.guestCount,
+            totalAmount: formatCurrency(Number(booking.totalAmount), booking.offering.currency),
+            bookingNumber: booking.bookingNumber,
+            qrCode: booking.qrCode || undefined,
+        });
+
+        await sendEmail({
+            to: booking.guestEmail,
+            subject: template.subject,
+            html: template.html,
+        });
+
+        // Log email
+        await db.emailLog.create({
+            data: {
+                to: booking.guestEmail,
+                subject: template.subject,
+                type: 'CONFIRMATION',
+                status: 'SENT',
+            },
+        });
+
+        console.log(`[CONFIRM] Booking ${bookingNumber} confirmed and email sent`);
+
+        return { success: true };
+    } catch (error) {
+        console.error('[CONFIRM] Error confirming booking:', error);
+        return { success: false, error: 'Failed to confirm booking' };
+    }
+}

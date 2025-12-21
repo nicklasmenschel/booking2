@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Modal } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
-import { createBooking } from "@/actions/bookings";
+import { createBooking, confirmBookingPayment } from "@/actions/bookings";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements, LinkAuthenticationElement } from "@stripe/react-stripe-js";
 import { formatCurrency, formatDate, formatTime, isValidEmail } from "@/lib/utils";
@@ -291,6 +291,7 @@ export function BookingModal({
                                 email={email}
                                 totalAmount={totalAmount}
                                 currency={offering.currency}
+                                bookingNumber={bookingNumber}
                                 onSuccess={() => setStep("success")}
                             />
                         </Elements>
@@ -372,11 +373,13 @@ function PaymentForm({
     email,
     totalAmount,
     currency,
+    bookingNumber,
     onSuccess
 }: {
     email: string;
     totalAmount: number;
     currency: string;
+    bookingNumber: string;
     onSuccess: () => void;
 }) {
     const stripe = useStripe();
@@ -403,7 +406,15 @@ function PaymentForm({
             setMessage(error.message ?? "An unexpected error occurred.");
             setIsProcessing(false);
         } else {
-            onSuccess();
+            // Payment succeeded - confirm booking immediately
+            try {
+                await confirmBookingPayment(bookingNumber);
+                onSuccess();
+            } catch (confirmError) {
+                console.error('Error confirming booking:', confirmError);
+                // Still show success since payment went through
+                onSuccess();
+            }
         }
     };
 
