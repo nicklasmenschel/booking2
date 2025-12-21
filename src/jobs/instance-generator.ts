@@ -2,7 +2,17 @@ import { db } from "@/lib/db";
 import { RecurrenceFrequency } from "@prisma/client";
 
 export async function generateUpcomingInstances() {
-    // 1. Find all active recurrence rules
+    // 1. Generate recurring event instances
+    await generateRecurringEventInstances();
+
+    // 2. Generate restaurant service period instances
+    await generateRestaurantInstances();
+}
+
+/**
+ * Generate instances for recurring events
+ */
+async function generateRecurringEventInstances() {
     const rules = await db.recurrenceRule.findMany({
         include: { offering: true }
     });
@@ -19,14 +29,10 @@ export async function generateUpcomingInstances() {
 
     for (const rule of rules) {
         try {
-            // Logic similar to createOffering but extending the timeline
-            // Start from last generated or today
             const start = rule.lastGenerated || new Date();
-            // Generate for next 30 days buffer
             const end = new Date();
             end.setDate(end.getDate() + 30);
 
-            // Don't generate past rule.until
             if (rule.until && end > rule.until) {
                 // cap at rule.until
             }
@@ -47,26 +53,17 @@ export async function generateUpcomingInstances() {
                 bymonth: rule.byMonth,
             });
 
-            // Get dates between now and buffer
             const dates = rrule.between(new Date(), end, true);
 
-            // TODO: Filter out dates that already exist in DB to avoid dupes/errors
-            // For now, simpler to rely on "lastGenerated" marker or unique constraint?
-            // Schema has @@unique([offeringId, date, startTime]) but only if these match exactly.
-
-            // Batch process dates
             for (const date of dates) {
-                // Set times
                 const startTime = new Date(date);
-                // Default duration 2 hours (TODO: Store defaultDuration on Offering)
                 const endTime = new Date(startTime);
                 endTime.setHours(startTime.getHours() + 2);
 
-                // Check strict uniqueness
                 const exists = await db.eventInstance.findFirst({
                     where: {
                         offeringId: rule.offeringId,
-                        date: startTime, // Prisma compares Date object to @db.Date column
+                        date: startTime,
                         startTime: startTime,
                     }
                 });
@@ -86,7 +83,6 @@ export async function generateUpcomingInstances() {
                 }
             }
 
-            // Update state
             await db.recurrenceRule.update({
                 where: { id: rule.id },
                 data: { lastGenerated: new Date() }
@@ -98,3 +94,121 @@ export async function generateUpcomingInstances() {
     }
 }
 
+/**
+ * Generate instances for restaurant service periods
+ */
+async function generateRestaurantInstances() {
+    // Find all restaurant offerings with active service periods
+    const servicePeriods = await db.servicePeriod.findMany({
+        where: {
+            isActive: true,
+        },
+        include: {
+            offering: true,
+        },
+    });
+
+    console.log(`Processing ${servicePeriods.length} restaurant service periods`);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Generate for next 30 days
+    const endDate = new Date(today);
+    endDate.setDate(endDate.getDate() + 30);
+
+    for (const period of servicePeriods) {
+        try {
+            // Loop through each day in the 30-day window
+            for (let currentDate = new Date(today); currentDate <= endDate; currentDate.setDate(currentDate.getDate() + 1)) {
+                const dayOfWeek = currentDate.getDay(); // 0 = Sunday, 6 = Saturday
+                // Convert to match our schema (1 = Monday, 7 = Sunday)
+                const adjustedDay = dayOfWeek === 0 ? 7 : dayOfWeek;
+
+                // Check if this service period operates on this day
+                if (!period.daysOfWeek.includes(adjustedDay)) {
+                    continue;
+                }
+
+                // Generate time slots for this day
+                const timeSlots = generateTimeSlots(
+                    period.startTime,
+                    period.lastSeating,
+                    period.intervalMinutes
+                );
+
+                for (const slot of timeSlots) {
+                    // Create full datetime for this slot
+                    const [hours, minutes] = slot.start.split(':').map(Number);
+                    const slotDateTime = new Date(currentDate);
+                    slotDateTime.setHours(hours, minutes, 0, 0);
+
+                    const [endHours, endMinutes] = slot.end.split(':').map(Number);
+                    const endDateTime = new Date(currentDate);
+                    endDateTime.setHours(endHours, endMinutes, 0, 0);
+
+                    // Check if instance already exists
+                    const exists = await db.eventInstance.findFirst({
+                        where: {
+                            offeringId: period.offeringId,
+                            date: currentDate,
+                            startTime: slotDateTime,
+                        },
+                    });
+
+                    if (!exists) {
+                        await db.eventInstance.create({
+                            data: {
+                                offeringId: period.offeringId,
+                                date: new Date(currentDate),
+                                startTime: slotDateTime,
+                                endTime: endDateTime,
+                                capacity: period.maxCoversPerSlot,
+                                availableSpots: period.maxCoversPerSlot,
+                                status: "AVAILABLE",
+                            },
+                        });
+                    }
+                }
+            }
+
+            console.log(`Generated instances for service period: ${period.name}`);
+        } catch (e) {
+            console.error(`Failed to generate for service period ${period.id}`, e);
+        }
+    }
+}
+
+/**
+ * Generate time slots between start and last seating
+ */
+function generateTimeSlots(
+    startTime: string,
+    lastSeating: string,
+    intervalMinutes: number
+): Array<{ start: string; end: string }> {
+    const slots: Array<{ start: string; end: string }> = [];
+
+    const [startHour, startMinute] = startTime.split(':').map(Number);
+    const [lastHour, lastMinute] = lastSeating.split(':').map(Number);
+
+    let currentMinutes = startHour * 60 + startMinute;
+    const lastMinutes = lastHour * 60 + lastMinute;
+
+    while (currentMinutes <= lastMinutes) {
+        const hours = Math.floor(currentMinutes / 60);
+        const minutes = currentMinutes % 60;
+        const start = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+
+        const endMinutes = currentMinutes + intervalMinutes;
+        const endHours = Math.floor(endMinutes / 60);
+        const endMins = endMinutes % 60;
+        const end = `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`;
+
+        slots.push({ start, end });
+
+        currentMinutes += intervalMinutes;
+    }
+
+    return slots;
+}
