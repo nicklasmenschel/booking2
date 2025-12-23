@@ -21,11 +21,14 @@ export async function createTable(data: {
         const { userId } = await auth();
         if (!userId) return { success: false, error: "Unauthorized" };
 
+        const user = await db.user.findUnique({ where: { clerkId: userId } });
+        if (!user) return { success: false, error: "Unauthorized" };
+
         const offering = await db.offering.findUnique({
             where: { id: data.offeringId },
         });
 
-        if (!offering || offering.hostId !== userId) {
+        if (!offering || offering.hostId !== user.id) {
             return { success: false, error: "Unauthorized" };
         }
 
@@ -54,12 +57,15 @@ export async function deleteTable(tableId: string) {
         const { userId } = await auth();
         if (!userId) return { success: false, error: "Unauthorized" };
 
+        const user = await db.user.findUnique({ where: { clerkId: userId } });
+        if (!user) return { success: false, error: "Unauthorized" };
+
         const table = await db.table.findUnique({
             where: { id: tableId },
             include: { offering: true },
         });
 
-        if (!table || table.offering.hostId !== userId) {
+        if (!table || table.offering.hostId !== user.id) {
             return { success: false, error: "Unauthorized" };
         }
 
@@ -79,6 +85,9 @@ export async function getTables(offeringId: string) {
     try {
         const { userId } = await auth();
         if (!userId) return { success: false, error: "Unauthorized" };
+
+        const user = await db.user.findUnique({ where: { clerkId: userId } });
+        if (!user) return { success: false, error: "Unauthorized" };
 
         const tables = await db.table.findMany({
             where: { offeringId },
@@ -110,11 +119,14 @@ export async function createServicePeriod(data: {
         const { userId } = await auth();
         if (!userId) return { success: false, error: "Unauthorized" };
 
+        const user = await db.user.findUnique({ where: { clerkId: userId } });
+        if (!user) return { success: false, error: "Unauthorized" };
+
         const offering = await db.offering.findUnique({
             where: { id: data.offeringId },
         });
 
-        if (!offering || offering.hostId !== userId) {
+        if (!offering || offering.hostId !== user.id) {
             return { success: false, error: "Unauthorized" };
         }
 
@@ -157,12 +169,15 @@ export async function updateServicePeriod(
         const { userId } = await auth();
         if (!userId) return { success: false, error: "Unauthorized" };
 
+        const user = await db.user.findUnique({ where: { clerkId: userId } });
+        if (!user) return { success: false, error: "Unauthorized" };
+
         const period = await db.servicePeriod.findUnique({
             where: { id: periodId },
             include: { offering: true },
         });
 
-        if (!period || period.offering.hostId !== userId) {
+        if (!period || period.offering.hostId !== user.id) {
             return { success: false, error: "Unauthorized" };
         }
 
@@ -184,12 +199,15 @@ export async function deleteServicePeriod(periodId: string) {
         const { userId } = await auth();
         if (!userId) return { success: false, error: "Unauthorized" };
 
+        const user = await db.user.findUnique({ where: { clerkId: userId } });
+        if (!user) return { success: false, error: "Unauthorized" };
+
         const period = await db.servicePeriod.findUnique({
             where: { id: periodId },
             include: { offering: true },
         });
 
-        if (!period || period.offering.hostId !== userId) {
+        if (!period || period.offering.hostId !== user.id) {
             return { success: false, error: "Unauthorized" };
         }
 
@@ -209,6 +227,9 @@ export async function getServicePeriods(offeringId: string) {
     try {
         const { userId } = await auth();
         if (!userId) return { success: false, error: "Unauthorized" };
+
+        const user = await db.user.findUnique({ where: { clerkId: userId } });
+        if (!user) return { success: false, error: "Unauthorized" };
 
         const periods = await db.servicePeriod.findMany({
             where: { offeringId },
@@ -240,11 +261,14 @@ export async function createWalkIn(data: {
         const { userId } = await auth();
         if (!userId) return { success: false, error: "Unauthorized" };
 
+        const user = await db.user.findUnique({ where: { clerkId: userId } });
+        if (!user) return { success: false, error: "Unauthorized" };
+
         const offering = await db.offering.findUnique({
             where: { id: data.offeringId },
         });
 
-        if (!offering || offering.hostId !== userId) {
+        if (!offering || offering.hostId !== user.id) {
             return { success: false, error: "Unauthorized" };
         }
 
@@ -272,6 +296,9 @@ export async function getWalkIns(offeringId: string, date?: Date) {
     try {
         const { userId } = await auth();
         if (!userId) return { success: false, error: "Unauthorized" };
+
+        const user = await db.user.findUnique({ where: { clerkId: userId } });
+        if (!user) return { success: false, error: "Unauthorized" };
 
         const targetDate = date || new Date();
         const startOfDay = new Date(targetDate);

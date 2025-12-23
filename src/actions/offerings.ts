@@ -12,8 +12,34 @@ import { RecurrenceFrequency } from "@prisma/client";
 
 export async function createOffering(input: CreateOfferingInput) {
     try {
+        console.log("----------------------------------------");
+        console.log("CREATE OFFERING SERVER ACTION CALLED");
+        console.log("Raw Input Type:", input.type);
+        console.log("Raw Input Category:", input.category);
+        console.log("Raw Input:", JSON.stringify(input, null, 2));
+
+        // FORCE TYPE CHECK
+        // If the form sent RESTAURANT, ensure it stays RESTAURANT
+        let finalType = input.type;
+        if (input.type === "RESTAURANT") {
+            console.log("Type is explicitly RESTAURANT");
+            finalType = "RESTAURANT";
+        }
+
+        // Also check category as fallback
+        if (input.category && (input.category.toLowerCase().includes("restaurant") || input.category.toLowerCase().includes("dining"))) {
+            console.log("Category implies RESTAURANT, forcing type.");
+            finalType = "RESTAURANT";
+        }
+
         // Validate input
         const validatedData = createOfferingSchema.parse(input);
+
+        // Override the type in validatedData to be safe
+        validatedData.type = finalType; // TypeScript might complain but we need to ensure this
+
+        console.log("Validated Data Type:", validatedData.type);
+        console.log("----------------------------------------");
 
         // Get authenticated user
         const { userId: clerkId } = await auth();
@@ -61,6 +87,8 @@ export async function createOffering(input: CreateOfferingInput) {
             data: {
                 slug,
                 name: validatedData.name,
+                tagline: validatedData.tagline || null,
+                category: validatedData.category || null,
                 description: validatedData.description,
                 coverImage: validatedData.coverImage,
                 images: validatedData.images || [],
@@ -70,7 +98,7 @@ export async function createOffering(input: CreateOfferingInput) {
                 country: validatedData.country,
                 isVirtual: validatedData.isVirtual,
                 virtualUrl: validatedData.virtualUrl,
-                type: validatedData.type,
+                type: finalType, // Explicitly use our resolved type
                 basePrice: validatedData.basePrice,
                 currency: validatedData.currency,
                 capacity: validatedData.capacity,
@@ -118,6 +146,8 @@ export async function createOffering(input: CreateOfferingInput) {
                 start.setHours(hours, minutes, 0, 0);
             }
 
+            console.log("Generating instances with recurrence:", validatedData.recurrence);
+
             const rule = new RRule({
                 freq: freqMap[frequency],
                 interval,
@@ -134,7 +164,9 @@ export async function createOffering(input: CreateOfferingInput) {
                 bymonth: byMonth,
             });
 
+            console.log("RRule generated:", rule.toString());
             const dates = rule.all();
+            console.log("Generated dates count:", dates.length);
 
             // Batch create instances
             // Note: Prisma createMany is supported in Postgres
@@ -209,6 +241,12 @@ export async function createOffering(input: CreateOfferingInput) {
 
     } catch (error) {
         console.error("Error creating offering:", error);
+
+        // Log validation errors in detail
+        if (error instanceof Error && error.name === 'ZodError') {
+            console.error("Validation errors:", JSON.stringify(error, null, 2));
+        }
+
         return {
             success: false,
             error: error instanceof Error ? error.message : "Failed to create event"
@@ -322,6 +360,9 @@ export async function updateOffering(
         if (input.capacity !== undefined) updateData.capacity = input.capacity;
         if (input.cancellationPolicy !== undefined) updateData.cancellationPolicy = input.cancellationPolicy;
         if (input.accentColor !== undefined) updateData.accentColor = input.accentColor;
+        if (input.bookingWindowDays !== undefined) updateData.bookingWindowDays = input.bookingWindowDays;
+        if (input.bookingOpensAt !== undefined) updateData.bookingOpensAt = input.bookingOpensAt;
+        if (input.lastMinuteBookingHours !== undefined) updateData.lastMinuteBookingHours = input.lastMinuteBookingHours;
 
         await db.offering.update({
             where: { id: offeringId },

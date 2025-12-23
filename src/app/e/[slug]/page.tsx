@@ -3,6 +3,7 @@ import { getOfferingBySlug } from "@/actions/offerings";
 import { EventHero } from "./event-hero";
 import { EventDetails } from "./event-details";
 import { BookingWidget } from "./booking-widget";
+import { RestaurantReservationWidget } from "./restaurant-reservation-widget";
 import { ReportButton } from "@/components/safety/report-button";
 import { ReviewsSection } from "@/components/reviews/review-card";
 import { getOfferingReviews } from "@/actions/reviews";
@@ -41,10 +42,11 @@ export default async function EventPage({ params }: EventPageProps) {
         notFound();
     }
 
+    const isRestaurant = offering.type === "RESTAURANT";
     const nextInstance = offering.instances[0];
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-white">
             {/* Hero Section */}
             <EventHero
                 name={offering.name}
@@ -52,46 +54,75 @@ export default async function EventPage({ params }: EventPageProps) {
                 host={offering.host}
             />
 
-            {/* Main Content */}
-            <div className="container py-8">
-                <div className="grid lg:grid-cols-3 gap-8">
-                    {/* Event Details - Left Column */}
-                    <div className="lg:col-span-2">
-                        <EventDetails offering={offering} />
-                    </div>
+            {/* Main Content - Generous Spacing */}
+            <div className="px-6 md:px-10 py-20">
+                <div className="max-w-[1280px] mx-auto">
+                    <div className="grid lg:grid-cols-3 gap-16">
+                        {/* Event Details - Left Column */}
+                        <div className="lg:col-span-2">
+                            <EventDetails offering={{
+                                ...offering,
+                                basePrice: Number(offering.basePrice) as any,
+                                averageRating: offering.averageRating ? Number(offering.averageRating) as any : null,
+                                ticketTiers: offering.ticketTiers.map(t => ({
+                                    ...t,
+                                    price: Number(t.price) as any
+                                }))
+                            }} />
+                        </div>
 
-                    {/* Booking Widget - Right Column */}
-                    <div className="lg:col-span-1">
-                        <div className="sticky top-24">
-                            <BookingWidget
-                                offering={{
-                                    id: offering.id,
-                                    name: offering.name,
-                                    basePrice: Number(offering.basePrice),
-                                    currency: offering.currency,
-                                    capacity: offering.capacity,
-                                    minPartySize: offering.minPartySize,
-                                    maxPartySize: offering.maxPartySize,
-                                    cancellationPolicy: offering.cancellationPolicy,
-                                }}
-                                instances={offering.instances.map(inst => ({
-                                    id: inst.id,
-                                    date: inst.date,
-                                    startTime: inst.startTime,
-                                    endTime: inst.endTime,
-                                    availableSpots: inst.availableSpots,
-                                    status: inst.status,
-                                }))}
-                                ticketTiers={offering.ticketTiers}
-                            />
+                        {/* Booking Widget - Right Column */}
+                        <div className="lg:col-span-1">
+                            <div className="sticky top-24">
+                                {isRestaurant ? (
+                                    <RestaurantReservationWidget
+                                        offering={{
+                                            id: offering.id,
+                                            name: offering.name,
+                                            basePrice: Number(offering.basePrice),
+                                            currency: offering.currency,
+                                            capacity: offering.capacity,
+                                            minPartySize: offering.minPartySize,
+                                            maxPartySize: offering.maxPartySize,
+                                            cancellationPolicy: offering.cancellationPolicy,
+                                        }}
+                                    />
+                                ) : (
+                                    <BookingWidget
+                                        offering={{
+                                            id: offering.id,
+                                            name: offering.name,
+                                            basePrice: Number(offering.basePrice),
+                                            currency: offering.currency,
+                                            capacity: offering.capacity,
+                                            minPartySize: offering.minPartySize,
+                                            maxPartySize: offering.maxPartySize,
+                                            cancellationPolicy: offering.cancellationPolicy,
+                                            type: offering.type,
+                                        }}
+                                        instances={offering.instances.map(inst => ({
+                                            id: inst.id,
+                                            date: inst.date,
+                                            startTime: inst.startTime,
+                                            endTime: inst.endTime,
+                                            availableSpots: inst.availableSpots,
+                                            status: inst.status,
+                                        }))}
+                                        ticketTiers={offering.ticketTiers.map(t => ({
+                                            ...t,
+                                            price: Number(t.price)
+                                        }))}
+                                    />
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                {/* Footer with Report */}
-                <div className="mt-12 pt-8 border-t border-gray-200">
-                    <div className="flex justify-center">
-                        <ReportButton targetType="OFFERING" targetId={offering.id} />
+                    {/* Footer with Report */}
+                    <div className="mt-32 pt-12 border-t border-gray-200">
+                        <div className="flex justify-center">
+                            <ReportButton targetType="OFFERING" targetId={offering.id} />
+                        </div>
                     </div>
                 </div>
             </div>

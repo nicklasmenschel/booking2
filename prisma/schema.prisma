@@ -70,6 +70,7 @@ model Offering {
   
   // The basics (always visible)
   name        String
+  tagline     String?  // Short tagline (100 chars)
   description String @db.Text
   coverImage  String
   images      String[] @default([])
@@ -121,6 +122,10 @@ model Offering {
   maxPartySize           Int?
   advanceBookingDays     Int                @default(60)
   lastMinuteBookingHours Int                @default(2)
+  
+  // Restaurant-specific booking settings
+  bookingOpensAt         String?            // Time of day bookings open (e.g., "08:00")
+  bookingWindowDays      Int?               // How far ahead bookings can be made
   
   // Computed fields (never set by user)
   totalBookings   Int      @default(0)
@@ -240,6 +245,11 @@ model Booking {
   specialRequests String? @db.Text
   tags            String[] @default([])
   
+  // Enhanced booking details
+  seatingPreferences Json?              // For restaurants: window seat, quiet area, etc.
+  occasion          String?             // Birthday, Anniversary, Business, etc.
+  referralSource    String?             // How guest found the event
+  
   // Payment (invisible to user, critical for platform)
   baseAmount            Decimal              @db.Decimal(10, 2)
   taxAmount             Decimal              @default(0) @db.Decimal(10, 2)
@@ -273,6 +283,17 @@ model Booking {
   updatedAt   DateTime  @updatedAt
   cancelledAt DateTime?
   
+  // Restaurant-specific fields
+  confirmationMode String?   // "MANUAL", "AUTO", "AUTO_GUARANTEE"
+  tableId          String?
+  table            Table?    @relation(fields: [tableId], references: [id])
+  checkInTime      DateTime? // When guest was seated
+  checkOutTime     DateTime? // When guest left
+  guestNotes       String?   @db.Text // Guest's special requests
+  staffNotes       String?   @db.Text // Internal staff notes
+  isWalkIn         Boolean   @default(false)
+  guestId          String?   // Link to Guest CRM profile
+  
   instance      EventInstance         @relation(fields: [instanceId], references: [id])
   offering      Offering              @relation(fields: [offeringId], references: [id])
   user          User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -280,6 +301,7 @@ model Booking {
   review        Review?
   modifications BookingModification[]
   notes         BookingNote[]
+  guest         Guest?                @relation(fields: [guestId], references: [id])
   
   @@index([instanceId])
   @@index([userId])
@@ -287,6 +309,8 @@ model Booking {
   @@index([status])
   @@index([paymentStatus])
   @@index([bookingNumber])
+  @@index([tableId])
+  @@index([guestId])
 }
 
 enum BookingStatus {
@@ -608,6 +632,15 @@ model Table {
   position      Json?
   shape         TableShape @default(RECTANGLE)
   
+  // Visual floor plan positioning
+  xPosition Float? // X coordinate on canvas
+  yPosition Float? // Y coordinate on canvas
+  rotation  Float  @default(0) // Rotation in degrees
+  color     String @default("#3b82f6") // Hex color for visual customization
+  
+  // Table QR code for payment
+  qrCode String? @unique
+  
   features      String[] @default([])
   accessibility Boolean  @default(false)
   
@@ -619,7 +652,8 @@ model Table {
   
   isActive Boolean @default(true)
   
-  offering Offering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  offering Offering  @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  bookings Booking[]
   
   @@index([offeringId])
   @@index([offeringId, isActive])
@@ -888,4 +922,112 @@ model SearchIndexSync {
   syncedAt   DateTime?
   
   @@index([status])
+}
+
+// ============================================================================
+// RESTAURANT MANAGEMENT MODELS
+// ============================================================================
+
+model Guest {
+  id     String  @id @default(cuid())
+  userId String? // Link to User if they create an account
+  email  String
+  phone  String?
+  
+  firstName String
+  lastName  String
+  
+  // Preferences & Dietary Information
+  dietaryRestrictions String[] @default([])
+  allergies           String[] @default([])
+  preferences         Json?    // Favorite tables, wine choices, etc.
+  specialOccasions    Json?    // Birthdays, anniversaries with dates
+  
+  // Reliability Metrics (computed from bookings)
+  totalBookings     Int     @default(0)
+  completedBookings Int     @default(0)
+  cancelledBookings Int     @default(0)
+  noShows           Int     @default(0)
+  totalSpent        Decimal @default(0) @db.Decimal(10, 2)
+  averageSpend      Decimal @default(0) @db.Decimal(10, 2)
+  lastVisit         DateTime?
+  
+  // Restaurant association
+  restaurantId String
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  bookings Booking[]
+  
+  @@unique([email, restaurantId])
+  @@index([restaurantId])
+  @@index([email])
+  @@index([phone])
+}
+
+model Campaign {
+  id           String @id @default(cuid())
+  restaurantId String
+  
+  name    String
+  type    CampaignType
+  subject String?      // For email campaigns
+  content String       @db.Text
+  
+  // Audience segmentation
+  segmentCriteria Json // Filters for targeting specific guests
+  
+  // Scheduling
+  scheduledFor DateTime?
+  sentAt       DateTime?
+  
+  // Performance Metrics
+  recipientCount Int @default(0)
+  openCount      Int @default(0)
+  clickCount     Int @default(0)
+  bookingCount   Int @default(0) // Bookings generated from campaign
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([restaurantId])
+  @@index([sentAt])
+}
+
+enum CampaignType {
+  EMAIL
+  SMS
+  BOTH
+}
+
+model ReservationSettings {
+  id           String @id @default(cuid())
+  restaurantId String @unique
+  
+  // Confirmation workflow
+  confirmationMode  ConfirmationMode @default(AUTO)
+  requireCreditCard Boolean          @default(false)
+  requirePrepayment Boolean          @default(false)
+  
+  // Policies
+  cancellationPolicy Json? // Cancellation rules and refund percentages
+  noShowCharge       Decimal @default(0) @db.Decimal(10, 2)
+  
+  // Reminder settings
+  send24hReminder Boolean @default(true)
+  send2hReminder  Boolean @default(true)
+  sendReviewRequest Boolean @default(true)
+  reviewRequestDelay Int @default(24) // Hours after visit
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([restaurantId])
+}
+
+enum ConfirmationMode {
+  MANUAL         // Staff must manually confirm
+  AUTO           // Automatic confirmation
+  AUTO_GUARANTEE // Automatic with credit card guarantee
 }

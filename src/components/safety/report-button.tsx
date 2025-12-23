@@ -100,7 +100,7 @@ export function ReportButton({ targetType, targetId }: ReportButtonProps) {
 
                         {/* Details Input */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className="block text-sm font-medium text-gray-900 mb-2">
                                 Additional details (optional)
                             </label>
                             <textarea

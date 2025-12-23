@@ -118,25 +118,36 @@ export async function createBooking(input: CreateBookingInput) {
                 },
             });
 
-            // Create Stripe PaymentIntent
-            const paymentIntent = await stripe.paymentIntents.create({
-                amount: Math.round(totalAmount * 100), // Amount in cents
-                currency: offering.currency.toLowerCase(),
-                metadata: {
-                    bookingNumber,
-                    instanceId: instance.id,
-                    offeringId: offering.id,
-                    userId: userId || "",
-                    guestName: validatedData.guestName,
-                    guestEmail: validatedData.guestEmail,
-                    guestCount: validatedData.guestCount.toString(),
-                },
-                automatic_payment_methods: {
-                    enabled: true,
-                },
-            });
+            // Create Stripe PaymentIntent only for paid events
+            let paymentIntent = null;
+            let paymentIntentId = null;
+            let initialPaymentStatus: "PENDING" | "CAPTURED" = "PENDING";
 
-            // Create booking with PENDING status and stripePaymentIntentId
+            if (totalAmount > 0) {
+                // Paid event - create Stripe payment intent
+                paymentIntent = await stripe.paymentIntents.create({
+                    amount: Math.round(totalAmount * 100), // Amount in cents
+                    currency: offering.currency.toLowerCase(),
+                    metadata: {
+                        bookingNumber,
+                        instanceId: instance.id,
+                        offeringId: offering.id,
+                        userId: userId || "",
+                        guestName: validatedData.guestName,
+                        guestEmail: validatedData.guestEmail,
+                        guestCount: validatedData.guestCount.toString(),
+                    },
+                    automatic_payment_methods: {
+                        enabled: true,
+                    },
+                });
+                paymentIntentId = paymentIntent.id;
+            } else {
+                // Free event - no payment required
+                initialPaymentStatus = "CAPTURED";
+            }
+
+            // Create booking
             const newBooking = await tx.booking.create({
                 data: {
                     bookingNumber,
@@ -151,12 +162,15 @@ export async function createBooking(input: CreateBookingInput) {
                     tags: validatedData.tags || [],
                     ticketTierId: validatedData.ticketTierId,
                     customAnswers: validatedData.customAnswers as any,
+                    seatingPreferences: validatedData.seatingPreferences ? validatedData.seatingPreferences as any : null,
+                    occasion: validatedData.occasion || null,
+                    referralSource: validatedData.referralSource || null,
                     baseAmount,
                     taxAmount,
                     serviceFeeAmount,
                     totalAmount,
-                    stripePaymentIntentId: paymentIntent.id,
-                    paymentStatus: "PENDING", // Confirmed via webhook or client-side check
+                    stripePaymentIntentId: paymentIntentId,
+                    paymentStatus: initialPaymentStatus,
                     status: "CONFIRMED", // We reserve the spot immediately
                     qrCode,
                 },
@@ -209,7 +223,7 @@ export async function createBooking(input: CreateBookingInput) {
 
             return {
                 booking: newBooking,
-                clientSecret: paymentIntent.client_secret,
+                clientSecret: paymentIntent?.client_secret || null,
             };
         });
 
@@ -786,7 +800,7 @@ export async function addBookingNote(bookingId: string, note: string) {
  */
 export async function confirmBookingPayment(bookingNumber: string) {
     'use server';
-    
+
     try {
         const booking = await db.booking.findUnique({
             where: { bookingNumber },

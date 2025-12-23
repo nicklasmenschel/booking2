@@ -222,7 +222,7 @@ export function GuestProfile({ guestHistory }: GuestProfileProps) {
                         notes.map((note: any) => (
                             <div
                                 key={note.id}
-                                className="p-3 bg-gray-50 rounded-lg border border-gray-200"
+                                className="p-3 bg-gray-50 rounded-xl border-2 border-gray-200"
                             >
                                 <p className="text-sm">{note.note}</p>
                                 <p className="text-xs text-gray-500 mt-2">

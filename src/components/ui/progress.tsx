@@ -76,7 +76,7 @@ export function ProgressBar({
 }: ProgressBarProps) {
     const variantColors = {
         default: "bg-primary",
-        success: "bg-success",
+        success: "bg-[#9CAF6E]",
         warning: "bg-warning",
         danger: "bg-destructive",
     };

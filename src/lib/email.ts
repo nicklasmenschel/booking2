@@ -17,7 +17,7 @@ export async function sendEmail({ to, subject, html, from }: EmailParams) {
 
     try {
         const { data, error } = await resend.emails.send({
-            from: from || 'Garden Table <bookings@gardentable.com>',
+            from: from || 'Garden Table <onboarding@resend.dev>',
             to,
             subject,
             html,

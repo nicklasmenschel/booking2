@@ -7,6 +7,7 @@ import { formatCurrency, formatDate, formatTime } from "@/lib/utils";
 import { BookingModal } from "@/components/booking/booking-modal";
 import { joinWaitlist } from "@/actions/waitlist";
 import { toast } from "@/components/ui/toast";
+import { Modal } from "@/components/ui/dialog";
 import {
     Calendar,
     Clock,
@@ -14,7 +15,8 @@ import {
     Minus,
     Plus,
     ChevronDown,
-    Loader2
+    Loader2,
+    Check
 } from "lucide-react";
 
 interface Instance {
@@ -43,6 +45,7 @@ interface BookingWidgetProps {
         minPartySize: number;
         maxPartySize?: number | null;
         cancellationPolicy: string;
+        type?: string;
     };
     instances: Instance[];
     ticketTiers?: TicketTier[];
@@ -59,6 +62,8 @@ export function BookingWidget({
     const [guestCount, setGuestCount] = useState(offering.minPartySize);
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showBookingModal, setShowBookingModal] = useState(false);
+    const [showMultiDateModal, setShowMultiDateModal] = useState(false);
+    const [selectedMultipleDates, setSelectedMultipleDates] = useState<Set<string>>(new Set());
     const [isWaitlistLoading, setIsWaitlistLoading] = useState(false);
 
     // I need to check how toast is used in other files. 
@@ -260,12 +265,29 @@ export function BookingWidget({
                     )}
                 </Button>
 
+                {/* Book Multiple Dates (for recurring events) */}
+                {offering.type === "RECURRING" && instances.length > 1 && !isSoldOut && (
+                    <Button
+                        variant="outline"
+                        size="lg"
+                        className="w-full"
+                        onClick={() => setShowMultiDateModal(true)}
+                    >
+                        Book Multiple Dates
+                    </Button>
+                )}
+
                 {/* Cancellation Policy */}
                 <p className="text-center text-sm text-muted-foreground">
                     {offering.cancellationPolicy === "FLEXIBLE" && "Free cancellation up to 24 hours before"}
                     {offering.cancellationPolicy === "MODERATE" && "Full refund up to 7 days before"}
                     {offering.cancellationPolicy === "STRICT" && "Full refund up to 14 days before"}
                 </p>
+                {offering.type === "RECURRING" && (
+                    <p className="text-center text-xs text-muted-foreground mt-2">
+                        This is a recurring event. You're booking only this date.
+                    </p>
+                )}
             </div>
 
             {/* Booking Modal */}
@@ -273,11 +295,121 @@ export function BookingWidget({
                 <BookingModal
                     open={showBookingModal}
                     onClose={() => setShowBookingModal(false)}
-                    offering={offering}
+                    offering={{
+                        ...offering,
+                        type: offering.type,
+                    }}
                     instance={selectedInstance}
                     guestCount={guestCount}
                     unitPrice={offering.basePrice}
                 />
+            )}
+
+            {/* Multi-Date Booking Modal */}
+            {showMultiDateModal && offering.type === "RECURRING" && (
+                <Modal open={showMultiDateModal} onClose={() => setShowMultiDateModal(false)} className="max-w-2xl">
+                    <div className="space-y-6">
+                        <div>
+                            <h2 className="text-xl font-bold">Book Multiple Dates</h2>
+                            <p className="text-sm text-muted-foreground">
+                                Select up to 10 dates to book at once
+                            </p>
+                        </div>
+
+                        <div className="space-y-2 max-h-96 overflow-y-auto">
+                            {instances.slice(0, 20).map((instance) => {
+                                const isSelected = selectedMultipleDates.has(instance.id);
+                                const isSoldOut = instance.status === "SOLD_OUT";
+
+                                return (
+                                    <button
+                                        key={instance.id}
+                                        onClick={() => {
+                                            if (isSoldOut) return;
+                                            const newSelected = new Set(selectedMultipleDates);
+                                            if (isSelected) {
+                                                newSelected.delete(instance.id);
+                                            } else if (newSelected.size < 10) {
+                                                newSelected.add(instance.id);
+                                            }
+                                            setSelectedMultipleDates(newSelected);
+                                        }}
+                                        disabled={isSoldOut || (!isSelected && selectedMultipleDates.size >= 10)}
+                                        className={`w-full flex items-center justify-between p-4 rounded-lg border-2 transition-colors ${isSelected
+                                                ? "border-primary bg-primary/5"
+                                                : "border-border hover:border-primary/50"
+                                            } ${isSoldOut ? "opacity-50 cursor-not-allowed" : ""} ${!isSelected && selectedMultipleDates.size >= 10 ? "opacity-50" : ""
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            {isSelected && (
+                                                <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                                                    <Check className="h-3 w-3 text-white" />
+                                                </div>
+                                            )}
+                                            {!isSelected && !isSoldOut && (
+                                                <div className="w-5 h-5 rounded-full border-2 border-border" />
+                                            )}
+                                            <div>
+                                                <p className="font-medium">
+                                                    {formatDate(instance.date)} at {formatTime(instance.startTime)}
+                                                </p>
+                                                <p className="text-sm text-muted-foreground">
+                                                    {instance.availableSpots} spots available
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {isSoldOut && (
+                                            <span className="text-sm text-destructive">Sold Out</span>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {selectedMultipleDates.size > 0 && (
+                            <div className="p-4 rounded-lg bg-muted">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-sm text-muted-foreground">
+                                        {selectedMultipleDates.size} {selectedMultipleDates.size === 1 ? "date" : "dates"} selected
+                                    </span>
+                                    <span className="font-semibold">
+                                        {formatCurrency(offering.basePrice * guestCount * selectedMultipleDates.size, offering.currency)}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    {guestCount} {guestCount === 1 ? "guest" : "guests"} × {selectedMultipleDates.size} dates
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setShowMultiDateModal(false);
+                                    setSelectedMultipleDates(new Set());
+                                }}
+                                className="flex-1"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={() => {
+                                    // TODO: Implement multi-date booking
+                                    toast.success("Multi-date booking coming soon!", {
+                                        description: "This feature will allow you to book multiple dates at once.",
+                                    });
+                                    setShowMultiDateModal(false);
+                                }}
+                                disabled={selectedMultipleDates.size === 0}
+                                className="flex-1"
+                            >
+                                Book {selectedMultipleDates.size} {selectedMultipleDates.size === 1 ? "Date" : "Dates"}
+                            </Button>
+                        </div>
+                    </div>
+                </Modal>
             )}
         </>
     );

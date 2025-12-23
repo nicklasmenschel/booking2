@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   CalendarDays,
@@ -13,100 +14,117 @@ import {
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border">
-        <div className="container flex h-16 items-center justify-between">
-          <Link href="/" className="text-xl font-bold">
-            Garden Table
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link href="/discover" className="text-sm font-medium hover:text-accent-500 transition-colors hidden sm:inline">
-              Discover
+    <div className="min-h-screen bg-white">
+      {/* Navigation - Refined Apple-style */}
+      <nav className="sticky top-0 z-50 bg-white/85 backdrop-blur-xl border-b border-gray-200">
+        <div className="max-w-[1280px] mx-auto px-6">
+          <div className="flex h-16 items-center justify-between">
+            <Link href="/" className="text-lg font-semibold text-gray-900">
+              Garden Table
             </Link>
-            <Link href="/sign-in">
-              <Button variant="ghost" size="sm">
-                Sign in
-              </Button>
-            </Link>
-            <Link href="/create">
-              <Button size="sm">
-                Create Event
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero Section */}
-      <section className="relative pt-32 pb-20 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-accent-50 via-background to-background -z-10" />
-        <div className="container">
-          <div className="max-w-3xl mx-auto text-center">
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-balance">
-              Create beautiful food experiences
-            </h1>
-            <p className="mt-6 text-xl text-muted-foreground text-balance max-w-2xl mx-auto">
-              The simplest way to host wine tastings, cooking classes, private dinners,
-              and more. Create in 60 seconds. Get booked in 15.
-            </p>
-            <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/create">
-                <Button size="xl" className="w-full sm:w-auto group">
-                  Start creating
-                  <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+            <div className="flex items-center gap-2">
+              <Link href="/discover" className="hidden sm:inline-block">
+                <Button variant="ghost" size="md">
+                  Discover
                 </Button>
               </Link>
-              <Link href="/discover">
-                <Button size="xl" variant="outline" className="w-full sm:w-auto">
-                  Explore experiences
+              <Link href="/sign-in">
+                <Button variant="ghost" size="md">
+                  Sign in
+                </Button>
+              </Link>
+              <Link href="/create">
+                <Button variant="primary" size="md">
+                  Create Event
                 </Button>
               </Link>
             </div>
           </div>
         </div>
+      </nav>
+
+      {/* Hero Section - 50/50 Split with Visual Proof */}
+      <section className="relative px-6 md:px-10 pt-40 pb-32">
+        <div className="max-w-[1280px] mx-auto">
+          <div className="grid md:grid-cols-2 gap-16 items-center">
+            {/* Left: Content */}
+            <div className="max-w-[640px]">
+              <h1 className="text-[72px] leading-[1.1] font-bold text-gray-900 tracking-[-0.02em] mb-8">
+                Create in 60&nbsp;seconds.
+                <br />
+                Get booked in&nbsp;15.
+              </h1>
+              <p className="text-xl text-gray-600 leading-[1.65] mb-12 max-w-[520px]">
+                For hosts who want full event pages without full websites.
+              </p>
+              <div className="flex items-center gap-4">
+                <Link href="/create">
+                  <Button
+                    size="lg"
+                    variant="primary"
+                    className="group text-lg px-8 py-4 h-auto rounded-xl font-semibold"
+                  >
+                    Create your first event
+                    <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            {/* Right: Visual Proof - Event Page Mockup */}
+            <div className="relative h-[600px] rounded-2xl overflow-hidden shadow-2xl hidden md:block">
+              <Image
+                src="/event-mockup.png"
+                alt="Beautiful event page example"
+                fill
+                className="object-cover"
+                priority
+              />
+            </div>
+          </div>
+        </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-20 bg-muted/50">
-        <div className="container">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold">
-              Everything you need, nothing you don't
+      {/* Features Section - Generous Spacing */}
+      <section className="py-32 px-6 md:px-10 bg-gray-50">
+        <div className="max-w-[1280px] mx-auto">
+          <div className="mb-20">
+            <h2 className="text-5xl font-bold text-gray-900 mb-4 tracking-tight">
+              Everything you need,<br />nothing you don't
             </h2>
-            <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-xl text-gray-600 max-w-[520px] leading-relaxed">
               Professional-grade booking with Apple-level simplicity
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             <FeatureCard
-              icon={<Sparkles className="h-6 w-6" />}
+              icon={<Sparkles className="h-8 w-8" />}
               title="Beautiful by default"
-              description="Your event page looks stunning without any customization. Just add your details and go."
+              description="Event pages look stunning without customization. Just add your details and go."
             />
             <FeatureCard
-              icon={<Clock className="h-6 w-6" />}
+              icon={<Clock className="h-8 w-8" />}
               title="60-second setup"
               description="Name, date, photos, price. That's it. Create your first event before your coffee gets cold."
             />
             <FeatureCard
-              icon={<Users className="h-6 w-6" />}
+              icon={<Users className="h-8 w-8" />}
               title="15-second booking"
               description="Apple Pay, Google Pay, or card. No account required. Guests book instantly."
             />
             <FeatureCard
-              icon={<CalendarDays className="h-6 w-6" />}
+              icon={<CalendarDays className="h-8 w-8" />}
               title="Automatic everything"
               description="Reminders, confirmations, thank you emails, waitlists. We handle it all."
             />
             <FeatureCard
-              icon={<MapPin className="h-6 w-6" />}
+              icon={<MapPin className="h-8 w-8" />}
               title="Get discovered"
               description="Join our marketplace and let food lovers find your experiences."
             />
             <FeatureCard
-              icon={<CreditCard className="h-6 w-6" />}
+              icon={<CreditCard className="h-8 w-8" />}
               title="Instant payouts"
               description="Stripe handles payments. Money hits your account in 2 days."
             />
@@ -114,89 +132,89 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Pricing Preview */}
-      <section className="py-20">
-        <div className="container">
-          <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold">
+      {/* Pricing Preview - Dramatic Numbers */}
+      <section className="py-32 px-6 md:px-10">
+        <div className="max-w-[1280px] mx-auto">
+          <div className="max-w-3xl mx-auto text-center mb-16">
+            <h2 className="text-5xl font-bold text-gray-900 mb-4">
               Simple pricing
             </h2>
-            <p className="mt-4 text-lg text-muted-foreground">
+            <p className="text-xl text-gray-600 leading-relaxed">
               Free to start. Pay only when you make money.
             </p>
+          </div>
 
-            <div className="mt-12 grid md:grid-cols-2 gap-8 max-w-2xl mx-auto">
-              <div className="rounded-2xl border-2 border-border p-8 text-left">
-                <h3 className="text-lg font-semibold">Free</h3>
-                <p className="mt-2 text-4xl font-bold">$0<span className="text-lg font-normal text-muted-foreground">/month</span></p>
-                <p className="mt-2 text-sm text-muted-foreground">5% per booking</p>
-                <ul className="mt-6 space-y-3">
-                  <PricingItem>Unlimited events</PricingItem>
-                  <PricingItem>Up to 50 bookings/month</PricingItem>
-                  <PricingItem>All core features</PricingItem>
-                  <PricingItem>Email support</PricingItem>
-                </ul>
-              </div>
+          <div className="grid md:grid-cols-2 gap-6 max-w-[900px] mx-auto">
+            {/* Free Plan */}
+            <div className="bg-white rounded-2xl border-2 border-gray-200 p-10">
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">Free</h3>
+              <p className="flex items-baseline mb-2">
+                <span className="text-[72px] font-extrabold text-gray-900 leading-none">$0</span>
+                <span className="ml-2 text-xl text-gray-600">/month</span>
+              </p>
+              <p className="text-base text-gray-600 mb-8">5% per booking</p>
+              <ul className="space-y-3">
+                <PricingItem>Unlimited events</PricingItem>
+                <PricingItem>Up to 50 bookings/month</PricingItem>
+                <PricingItem>All core features</PricingItem>
+                <PricingItem>Email support</PricingItem>
+              </ul>
+            </div>
 
-              <div className="rounded-2xl border-2 border-foreground p-8 text-left relative">
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-foreground text-background px-3 py-1 rounded-full text-xs font-semibold">
-                  Most popular
-                </div>
-                <h3 className="text-lg font-semibold">Growth</h3>
-                <p className="mt-2 text-4xl font-bold">$99<span className="text-lg font-normal text-muted-foreground">/month</span></p>
-                <p className="mt-2 text-sm text-muted-foreground">2.5% per booking</p>
-                <ul className="mt-6 space-y-3">
-                  <PricingItem>Everything in Free</PricingItem>
-                  <PricingItem>Unlimited bookings</PricingItem>
-                  <PricingItem>Custom domain</PricingItem>
-                  <PricingItem>Priority support</PricingItem>
-                </ul>
+            {/* Growth Plan */}
+            <div className="bg-white rounded-2xl border-2 border-[#C9A76B] p-10 relative">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-black text-white px-3 py-1 rounded-xl text-xs font-semibold">
+                Most popular
               </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-4">Growth</h3>
+              <p className="flex items-baseline mb-2">
+                <span className="text-[72px] font-extrabold text-gray-900 leading-none">$99</span>
+                <span className="ml-2 text-xl text-gray-600">/month</span>
+              </p>
+              <p className="text-base text-gray-600 mb-8">2.5% per booking</p>
+              <ul className="space-y-3">
+                <PricingItem><span className="font-semibold">Everything in Free</span></PricingItem>
+                <PricingItem>Unlimited bookings</PricingItem>
+                <PricingItem>Custom domain</PricingItem>
+                <PricingItem>Priority support</PricingItem>
+              </ul>
             </div>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-foreground text-background">
-        <div className="container">
-          <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold">
-              Ready to host something amazing?
-            </h2>
-            <p className="mt-4 text-lg text-background/70">
-              Join hundreds of hosts creating unforgettable food experiences.
-            </p>
-            <Link href="/create" className="inline-block mt-8">
-              <Button size="xl" variant="secondary" className="group">
-                Create your first event
-                <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
-              </Button>
-            </Link>
-          </div>
+      <section className="py-24 px-6 md:px-10 bg-gray-900">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-4xl font-bold text-white mb-4">
+            Ready to host something amazing?
+          </h2>
+          <p className="text-xl text-gray-400 mb-8">
+            Join hundreds of hosts creating unforgettable food experiences.
+          </p>
+          <Link href="/create">
+            <Button size="lg" variant="secondary" className="group text-lg px-8 py-4 h-auto rounded-xl">
+              Create your first event
+              <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+            </Button>
+          </Link>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-12 border-t border-border">
-        <div className="container">
+      {/* Footer - Minimal */}
+      <footer className="py-12 px-6 md:px-10 border-t border-gray-200 bg-white">
+        <div className="max-w-[1280px] mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <span className="font-bold">Garden Table</span>
-              <span className="text-muted-foreground">© 2024</span>
+              <span className="font-semibold text-gray-900">Garden Table</span>
+              <span className="text-gray-600">© 2024</span>
             </div>
-            <div className="flex items-center gap-6 text-sm text-muted-foreground">
-              <Link href="/discover" className="hover:text-foreground transition-colors">
+            <div className="flex items-center gap-6 text-sm">
+              <Link href="/discover" className="text-gray-600 hover:text-gray-900 transition-colors">
                 Discover
               </Link>
-              <Link href="/pricing" className="hover:text-foreground transition-colors">
-                Pricing
-              </Link>
-              <Link href="/help" className="hover:text-foreground transition-colors">
-                Help
-              </Link>
-              <Link href="/privacy" className="hover:text-foreground transition-colors">
-                Privacy
+              <Link href="/create" className="text-gray-600 hover:text-gray-900 transition-colors">
+                Create
               </Link>
             </div>
           </div>
@@ -206,6 +224,7 @@ export default function HomePage() {
   );
 }
 
+// Feature Card Component - Enhanced
 function FeatureCard({
   icon,
   title,
@@ -216,20 +235,21 @@ function FeatureCard({
   description: string;
 }) {
   return (
-    <div className="rounded-2xl border-2 border-border bg-card p-6 transition-all hover:border-foreground hover:shadow-lg">
-      <div className="h-12 w-12 rounded-xl bg-accent-100 flex items-center justify-center text-accent-600">
+    <div className="bg-white rounded-2xl border-2 border-gray-300 p-8 transition-all duration-200 hover:border-gray-300 hover:shadow-lg hover:-translate-y-0.5">
+      <div className="text-[#C9A76B] mb-4">
         {icon}
       </div>
-      <h3 className="mt-4 text-lg font-semibold">{title}</h3>
-      <p className="mt-2 text-muted-foreground">{description}</p>
+      <h3 className="text-xl font-semibold text-gray-900 mb-2">{title}</h3>
+      <p className="text-base text-gray-600 leading-[1.6]">{description}</p>
     </div>
   );
 }
 
+// Pricing Item Component
 function PricingItem({ children }: { children: React.ReactNode }) {
   return (
-    <li className="flex items-center gap-2 text-sm">
-      <Check className="h-4 w-4 text-success" />
+    <li className="flex items-center gap-3 text-base text-gray-900">
+      <Check className="h-5 w-5 text-[#9CAF6E] flex-shrink-0" />
       {children}
     </li>
   );

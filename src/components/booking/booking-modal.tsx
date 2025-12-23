@@ -32,6 +32,7 @@ interface BookingModalProps {
         name: string;
         basePrice: number;
         currency: string;
+        type?: string;
     };
     instance: {
         id: string;
@@ -66,6 +67,9 @@ export function BookingModal({
     const [phone, setPhone] = useState("");
     const [specialRequests, setSpecialRequests] = useState("");
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    const [seatingPreferences, setSeatingPreferences] = useState<string[]>([]);
+    const [occasion, setOccasion] = useState<string>("");
+    const [referralSource, setReferralSource] = useState<string>("");
 
     // Booking result
     const [bookingNumber, setBookingNumber] = useState("");
@@ -80,6 +84,9 @@ export function BookingModal({
     const totalAmount = baseAmount + taxAmount;
 
     const tags = ["Vegetarian", "Birthday", "Anniversary", "First time", "Allergies"];
+    const seatingOptions = ["Window seat", "Quiet area", "Booth", "Outdoor/Patio", "High-top/Bar seating"];
+    const occasionOptions = ["Birthday", "Anniversary", "Business meal", "Just dining", "Date night", "Family gathering"];
+    const referralOptions = ["Search", "Social media", "Friend", "Email", "Advertisement", "Other"];
 
     const toggleTag = (tag: string) => {
         setSelectedTags((prev) =>
@@ -103,13 +110,30 @@ export function BookingModal({
                 guestCount,
                 specialRequests: specialRequests || undefined,
                 tags: selectedTags,
+                seatingPreferences: seatingPreferences.length > 0 ? seatingPreferences : undefined,
+                occasion: occasion || undefined,
+                referralSource: referralSource || undefined,
             });
 
-            if (result.success && result.data && result.data.clientSecret) {
+            if (result.success && result.data) {
                 setBookingNumber(result.data.bookingNumber);
                 setQrCode(result.data.qrCode || "");
-                setClientSecret(result.data.clientSecret);
-                setStep("payment");
+
+                // Check if this is a free event (no clientSecret)
+                if (result.data.clientSecret) {
+                    // Paid event - proceed to payment step
+                    setClientSecret(result.data.clientSecret);
+                    setStep("payment");
+                } else {
+                    // Free event - skip payment and confirm booking
+                    try {
+                        await confirmBookingPayment(result.data.bookingNumber);
+                    } catch (confirmError) {
+                        console.error('Error confirming free booking:', confirmError);
+                        // Continue to success even if confirmation email fails
+                    }
+                    setStep("success");
+                }
             } else {
                 throw new Error(result.error || "Failed to initiate booking");
             }
@@ -195,6 +219,71 @@ export function BookingModal({
                             />
                         </div>
 
+                        {/* Seating Preferences (for restaurants) */}
+                        {offering.type === "RESTAURANT" && (
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Seating Preferences (optional)</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {seatingOptions.map((option) => (
+                                        <button
+                                            key={option}
+                                            type="button"
+                                            onClick={() => {
+                                                setSeatingPreferences(prev =>
+                                                    prev.includes(option)
+                                                        ? prev.filter(o => o !== option)
+                                                        : [...prev, option]
+                                                );
+                                            }}
+                                            className={`px-3 py-1 rounded-full text-sm transition-colors ${seatingPreferences.includes(option)
+                                                ? "bg-foreground text-background"
+                                                : "bg-muted hover:bg-muted/80"
+                                                }`}
+                                        >
+                                            {option}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Occasion */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Occasion (optional)</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {occasionOptions.map((opt) => (
+                                    <button
+                                        key={opt}
+                                        type="button"
+                                        onClick={() => setOccasion(opt === occasion ? "" : opt)}
+                                        className={`px-3 py-2 rounded-lg text-sm transition-colors ${occasion === opt
+                                            ? "bg-foreground text-background"
+                                            : "bg-muted hover:bg-muted/80"
+                                            }`}
+                                    >
+                                        {opt}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* How did you hear about us */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">How did you hear about this event? (optional)</label>
+                            <select
+                                value={referralSource}
+                                onChange={(e) => setReferralSource(e.target.value)}
+                                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+                            >
+                                <option value="">Select...</option>
+                                {referralOptions.map((opt) => (
+                                    <option key={opt} value={opt}>
+                                        {opt}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
                         {/* Special Requests Toggle */}
                         <div className="space-y-3">
                             <button
@@ -243,6 +332,8 @@ export function BookingModal({
                                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                                     Creating booking...
                                 </>
+                            ) : totalAmount === 0 ? (
+                                "Confirm booking"
                             ) : (
                                 "Continue to payment"
                             )}
@@ -306,8 +397,8 @@ export function BookingModal({
                         className="text-center space-y-6"
                     >
                         {/* Success Icon */}
-                        <div className="mx-auto w-16 h-16 rounded-full bg-success/10 flex items-center justify-center">
-                            <Check className="h-8 w-8 text-success" />
+                        <div className="mx-auto w-16 h-16 rounded-full bg-[#9CAF6E]/10 flex items-center justify-center">
+                            <Check className="h-8 w-8 text-[#9CAF6E]" />
                         </div>
 
                         {/* Header */}

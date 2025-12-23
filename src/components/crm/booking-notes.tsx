@@ -72,7 +72,7 @@ export function BookingNotes({ bookingId, notes }: BookingNotesProps) {
                     notes.map((note) => (
                         <div
                             key={note.id}
-                            className="p-3 rounded-lg border border-gray-200 bg-gray-50"
+                            className="p-3 rounded-xl border-2 border-gray-200 bg-gray-50"
                         >
                             <p className="text-sm">{note.note}</p>
                             <p className="text-xs text-gray-500 mt-1">

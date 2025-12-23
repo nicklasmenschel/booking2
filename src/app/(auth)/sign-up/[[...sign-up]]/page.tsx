@@ -4,6 +4,7 @@ export default function SignUpPage() {
     return (
         <div className="min-h-screen flex items-center justify-center p-4 bg-muted/30">
             <SignUp
+                forceRedirectUrl="/dashboard"
                 appearance={{
                     elements: {
                         rootBox: "mx-auto",
@@ -13,7 +14,7 @@ export default function SignUpPage() {
                         socialButtonsBlockButton: "border-2 border-border rounded-xl h-12",
                         formButtonPrimary: "bg-foreground hover:bg-foreground/90 text-background rounded-xl h-12",
                         formFieldInput: "rounded-xl border-2 border-input",
-                        footerActionLink: "text-accent-600 hover:text-accent-700",
+                        footerActionLink: "text-[#C9A76B]-600 hover:text-[#C9A76B]-700",
                     },
                 }}
             />

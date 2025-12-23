@@ -27,6 +27,7 @@ interface Offering {
     name: string;
     coverImage: string;
     status: string;
+    type?: string;
     basePrice: number;
     currency: string;
     capacity: number;
@@ -69,7 +70,7 @@ export function EventsList({ offerings }: EventsListProps) {
 
                 return (
                     <Card key={offering.id} hover className="overflow-hidden">
-                        <Link href={`/dashboard/events/${offering.id}`}>
+                        <Link href={offering.type === "RESTAURANT" ? `/dashboard/restaurant/${offering.id}` : `/dashboard/events/${offering.id}`}>
                             {/* Cover Image */}
                             <div className="relative h-40">
                                 <img

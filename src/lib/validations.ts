@@ -25,6 +25,8 @@ export const cancellationPolicySchema = z.enum(["FLEXIBLE", "MODERATE", "STRICT"
 
 export const createOfferingSchema = z.object({
     name: z.string().min(1, "Event name is required").max(200),
+    tagline: z.string().max(100).optional(),
+    category: z.string().optional(),
     description: z.string().min(10, "Description must be at least 10 characters").max(5000),
     coverImage: z.string().url("Cover image is required"),
     images: z.array(z.string().url()).max(5).optional(),
@@ -38,7 +40,8 @@ export const createOfferingSchema = z.object({
     virtualUrl: z.string().url().optional(),
 
     // Type
-    type: offeringTypeSchema.default("ONE_TIME"),
+    // Type
+    type: offeringTypeSchema,
 
     // Pricing
     basePrice: z.number().min(0, "Price must be positive"),
@@ -57,6 +60,9 @@ export const createOfferingSchema = z.object({
     minPartySize: z.number().int().min(1).optional(),
     maxPartySize: z.number().int().optional(),
     advanceBookingDays: z.number().int().optional(),
+    bookingWindowDays: z.number().int().optional(),
+    bookingOpensAt: z.string().optional(),
+    lastMinuteBookingHours: z.number().int().optional(),
 
     // Customization
     accentColor: z.string().optional(),
@@ -66,7 +72,9 @@ export const createOfferingSchema = z.object({
         frequency: z.enum(["DAILY", "WEEKLY", "MONTHLY", "YEARLY"]),
         interval: z.number().min(1).default(1),
         count: z.number().min(1).optional(),
-        until: z.date().optional(),
+        until: z.union([z.string(), z.date()]).transform(val =>
+            typeof val === 'string' ? new Date(val) : val
+        ).optional(),
         byWeekDay: z.array(z.string()).optional(),
         byMonthDay: z.array(z.number()).optional(),
         byMonth: z.array(z.number()).optional(),
@@ -93,6 +101,9 @@ export const createBookingSchema = z.object({
     tags: z.array(z.string()).optional(),
     ticketTierId: z.string().optional(),
     customAnswers: z.record(z.string(), z.string()).optional(),
+    seatingPreferences: z.array(z.string()).optional(),
+    occasion: z.string().optional(),
+    referralSource: z.string().optional(),
 });
 
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;
